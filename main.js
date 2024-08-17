@@ -304,9 +304,6 @@ fetch('data.json')
                 extrinsics[3][0], extrinsics[3][1], extrinsics[3][2], extrinsics[3][3]
             );
 
-            const worldMatrix = new THREE.Matrix4();
-            worldMatrix.copy(matrix).invert();
-
             // Create a new Euler object
             const euler = new THREE.Euler();
 
@@ -344,10 +341,8 @@ fetch('data.json')
             const focal_length = intrinsics[0] * unit_scale;
             // Position the image plane directly in front of the camera
             const planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
-            // Rotate the plane position according to the camera's rotation
-            planePosition.applyEuler(euler);
-            // Translate the plane position to be in front of the camera
-            planePosition.add(cameraPosition);
+            // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
+            planePosition.applyEuler(euler).add(cameraPosition);
 
             // // Add the image plane
             // addImagePlan(
@@ -367,22 +362,17 @@ fetch('data.json')
 
             let points3d = points.map(point => {
                 const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(unit_scale);
-                return localPoint.applyEuler(euler).add(cameraPosition);; // Transform to world coordinates
+                // Flip the y-axis
+                localPoint.y *= -1;
+
+                return localPoint.applyEuler(euler).add(cameraPosition); // Transform to world coordinates
+                // return localPoint;  // Return camera coordinates
             });
             
             points3d.forEach(point => {
                 addPoint(point.x, point.y, point.z, color, 0.005);
+                addLine(cameraPosition, point, color);
             });
-
-            // let points3d = points.map(subArray => subArray.map(value => value / 1000));
-            // // Visualize the joints using the addPoint function
-            // points3d.forEach(point => {
-            //     addPoint(point[0], point[1], point[2], color, 0.005);
-            // });
-
-            // addTextLabel(points3d[0][0], points3d[0][1], points3d[0][2], 
-            //     `(${points3d[0][0]/unit_scale}, ${points3d[0][1]/unit_scale}, ${points3d[0][2]/unit_scale})`,
-            //     color);
 
             // Visualize the edges between joints
             const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
@@ -395,52 +385,13 @@ fetch('data.json')
                 const start = points3d[edge[0]];
                 const end = points3d[edge[1]];
                 addLine(
-                    { x: start[0], y: start[1], z: start[2] },
-                    { x: end[0], y: end[1], z: end[2] },
+                    { x: start.x, y: start.y, z: start.z },
+                    { x: end.x, y: end.y, z: end.z },
                     color
                 );
             });
             
         });
-
-        // data.joints3d.forEach(j3d => {
-        //     const unit_scale = 0.001;
-        //     const { cam_id, color, points } = j3d;
-        //     let points3d = points.map(subArray => subArray.map(value => value / 1000));
-        //     // Visualize the joints using the addPoint function
-        //     points3d.forEach(point => {
-        //         addPoint(point[0], point[1], point[2], color, 0.005);
-        //     });
-
-        //     // addTextLabel(points3d[0][0], points3d[0][1], points3d[0][2], 
-        //     //     `(${points3d[0][0]/unit_scale}, ${points3d[0][1]/unit_scale}, ${points3d[0][2]/unit_scale})`,
-        //     //     color);
-
-        //     // Visualize the edges between joints
-        //     const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
-        //     [0, 5], [5, 6], [6, 7], [7, 8],
-        //     [0, 9], [9, 10], [10, 11], [11, 12],
-        //     [0, 13], [13, 14], [14, 15], [15, 16],
-        //     [0, 17], [17, 18], [18, 19], [19, 20]];
-
-        //     HAND_EDGES.forEach(edge => {
-        //         const start = points3d[edge[0]];
-        //         const end = points3d[edge[1]];
-        //         addLine(
-        //             { x: start[0], y: start[1], z: start[2] },
-        //             { x: end[0], y: end[1], z: end[2] },
-        //             color
-        //         );
-        //     });
-        // });
-
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
     })
     .catch(error => console.error('Error loading JSON file:', error));
 
