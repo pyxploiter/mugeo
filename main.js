@@ -2,95 +2,95 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-function degreesToRadians(degrees) {
-    return degrees * (Math.PI / 180);
-}
-
-function radiansToDegrees(radians) {
-    return radians * (180 / Math.PI);
-}
-
-function rotationMatrixToEulerZYX(R) {
-    // const sy = Math.sqrt(R[0][0] * R[0][0] + R[1][0] * R[1][0]);
-    const sy = Math.sqrt(R[0][0] * R[0][0] + R[1][0] * R[1][0]);
-    const singular = sy < 1e-6;
-
-    let x, y, z;
-
-    if (!singular) {
-        x = Math.atan2(R[2][1], R[2][2]);
-        y = Math.atan2(-R[2][0], sy);
-        z = Math.atan2(R[1][0], R[0][0]);
-    } else {
-        x = Math.atan2(-R[1][2], R[1][1]);
-        y = Math.atan2(-R[2][0], sy);
-        z = 0;
-    }
-
-    return [x, y, z]
-}
-
-// Basic Three.js setup
-let scene = new THREE.Scene();
-scene.background = new THREE.Color('#eee');
 
 const ww = window.innerWidth;
 const wh = window.innerHeight;
 
-let camera = new THREE.PerspectiveCamera(75, ww/wh, 0.1, 1000);
-// Set camera position
-camera.position.set(1, 1, 2);
-camera.lookAt(0, 0, 0);
+function setupScene(){
+    // Basic Three.js setup
+    let scene = new THREE.Scene();
+    scene.background = new THREE.Color('#eee');
 
-const renderer = new THREE.WebGLRenderer({ 
-    antialias: true, 
-    alpha: true 
-});
+    // flip x and y axes, 
+    scene.scale.set(-1, -1, 1); 
+    return scene;
+}
 
-renderer.setSize(ww, wh);
-renderer.setPixelRatio(window.devicePixelRatio);
+function setupRenderer(){
+    const renderer = new THREE.WebGLRenderer({ 
+        antialias: true, 
+        alpha: true 
+    });
+    
+    renderer.setSize(ww, wh);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    return renderer;
+}
 
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputEncoding = THREE.sRGBEncoding;
+function setupCamera(){
+    let camera = new THREE.PerspectiveCamera(75, ww/wh, 0.1, 1000);
+    // let camera = new THREE.OrthographicCamera( ww / - 2, ww / 2, wh / 2, wh / - 2, 1, 1000 );
+    // Set camera position
+    camera.position.set(1, 1, 2);
+    camera.lookAt(0, 0, 0);
+    return camera
+}
 
-document.body.appendChild(renderer.domElement);
+function setupControls(){
+    // Camera controls
+    let controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.enablePan = true;
+    // controls.target = new THREE.Vector3(0, 0.75, 0);
+    controls.update()
+    return controls
+}
 
-// Camera controls
-let controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.enablePan = true;
-// controls.target = new THREE.Vector3(0, 0.75, 0);
-controls.update()
+function addHelpers(scene){
+    // 100x100 grid 
+    let gridHelper = new THREE.GridHelper(10, 100);
+    gridHelper.position.set(0, 0, 0);
+    scene.add(gridHelper);
 
-// 100x100 grid 
-let gridHelper = new THREE.GridHelper(10, 100);
-gridHelper.position.set(0, 0, 0);
-scene.add(gridHelper);
+    // // Adding origin axes
+    let axesHelper = new THREE.AxesHelper(5);
+    scene.add(axesHelper);
+}
 
-// // Adding origin axes
-// let axesHelper = new THREE.AxesHelper(5);
-// scene.add(axesHelper);
-
-// Lights setup
-scene.add(new THREE.AmbientLight(0xffffff, 1));
-// const keylight = new THREE.DirectionalLight(0xffffff, 0.6);
-// keylight.position.set(1, 1, 2);
-// keylight.lookAt(0, 0, 0);
-// scene.add(keylight);
+function addLights(scene){
+    // Lights setup
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+    // const keylight = new THREE.DirectionalLight(0xffffff, 0.6);
+    // keylight.position.set(1, 1, 2);
+    // keylight.lookAt(0, 0, 0);
+    // scene.add(keylight);
+}
 
 // Function to add 3D points
-function addPoint(x, y, z, color = 0xff0000, size = 0.05) {
+function addPoint(x, y, z, color = 0xff0000, size = 0.05, opacity = 1.0) {
     let geometry = new THREE.SphereGeometry(size, 32, 32);
-    let material = new THREE.MeshBasicMaterial({ color: color });
+    let material = new THREE.MeshBasicMaterial({ 
+        color: color,
+        transparent: true,
+        opacity: opacity 
+    });
     let point = new THREE.Mesh(geometry, material);
     point.position.set(x, y, z);
     scene.add(point);
 }
 
 // Function to add lines between points
-function addLine(point1, point2, color = 0x0000ff) {
-    let material = new THREE.LineBasicMaterial({ color: color });
+function addLine(point1, point2, color = 0x0000ff, opacity = 1.0) {
+    let material = new THREE.LineBasicMaterial({ 
+        color: color, 
+        transparent: true,
+        opacity: opacity 
+    });
+
     let geometry = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(point1.x, point1.y, point1.z),
         new THREE.Vector3(point2.x, point2.y, point2.z)
@@ -118,7 +118,7 @@ function addTextLabel(x, y, z, text, color) {
 }
 
 // Function to add a 2D image as a plane in 3D space with pixel-to-cell conversion
-function addImageAsPlane(imagePath, position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, pixelsPerCell = 100) {
+function addImageAsPlane(imagePath, position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, pixelsPerCell = 100, opacity = 0.5) {
     // Load the image to get its dimensions
     const image = new Image();
     image.src = imagePath;
@@ -139,11 +139,15 @@ function addImageAsPlane(imagePath, position = {x: 0, y: 0, z: 0}, rotation = {x
             // Create a material with the loaded texture
             const material = new THREE.MeshBasicMaterial({
                 map: texture,
-                side: THREE.DoubleSide // Render both sides of the plane
+                side: THREE.DoubleSide, // Render both sides of the plane
+                transparent: true, 
+                opacity: opacity,
             });
 
             // Create a plane geometry with the converted dimensions
             const geometry = new THREE.PlaneGeometry(widthInMeters, heightInMeters);
+            // Flip the plane along the Y-axis
+            geometry.scale(1, -1, 1);
             const plane = new THREE.Mesh(geometry, material);
 
             // Set position and rotation
@@ -227,52 +231,6 @@ function addCameraModel(position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z
     });
 }
 
-// Function to load points and lines from JSON file
-function loadFromJSON(data) {
-    const points = data.points;
-    const lines = data.lines;
-
-    // Add points
-    points.forEach(p => {
-        addPoint(p.x, p.y, p.z, p.color || 0xff0000, p.size || 0.05);
-    });
-
-    // Add lines
-    lines.forEach(l => {
-        addLine({x: l.start.x, y: l.start.y, z: l.start.z},
-                {x: l.end.x, y: l.end.y, z: l.end.z},
-                l.color || 0x0000ff);
-    });
-}
-
-// // File input handling
-// document.getElementById('fileInput').addEventListener('change', function(event) {
-//     const file = event.target.files[0];
-//     if (file) {
-//         const reader = new FileReader();
-//         reader.onload = function(e) {
-//             const data = JSON.parse(e.target.result);
-//             loadFromJSON(data);
-//         };
-//         reader.readAsText(file);
-//     }
-// });
-
-// document.getElementById('addCameraBtn').addEventListener('click', function() {
-//     // Example: Add a camera at a random position
-//     const randomX = Math.random() * 10 - 5;
-//     const randomY = Math.random() * 10 - 5;
-//     const randomZ = Math.random() * 10 - 5;
-    
-//     addCameraModel({x: randomX, y: randomY, z: randomZ});
-// });
-
-window.addEventListener('resize', () => {
-    camera.aspect = ww / wh;
-    camera.updateProjectionMatrix();
-    renderer.setSize(ww, wh);
-});
-
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
@@ -280,13 +238,79 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Example points and line
-// addPoint(0, 0, 0); // Point at origin
-// addPoint(5, 0.5, 1); // Another point
-// addPoint(2, 3, 2, 0x00ff00, 0.1)
-// addLine({x: 0, y: 0, z: 0}, {x: 1, y: 0.5, z: 1}); // Line between the points
-// addCameraModel({x: 2, y: 3, z: 2}, {x: 0, y: 0, z: 0});
-// addImageAsPlane('assets/hand.jpg', {x: 0, y: 0, z: 2}, {x: 0, y: 0, z: 0}, 500);
+function projectPoint(point3D, intrinsics, extrinsics) {
+    // Convert the 3D point to homogeneous coordinates (4D)
+    const point3DHomogeneous = new THREE.Vector4(point3D.x, point3D.y, point3D.z, 1.0);
+    
+    // Apply the extrinsics matrix to transform the point to camera coordinates
+    const cameraCoords = point3DHomogeneous.applyMatrix4(extrinsics);
+
+    // Apply the intrinsic matrix to project the point onto the 2D image plane
+    const fx = intrinsics[0];
+    const fy = intrinsics[1];
+    const cx = intrinsics[2];
+    const cy = intrinsics[3];
+
+    const x2D = (cameraCoords.x / cameraCoords.z) * fx + cx;
+    const y2D = (cameraCoords.y / cameraCoords.z) * fy + cy;
+
+    return { x: x2D, y: y2D };
+}
+
+function updateCameraPosition(x, y, z){
+
+}
+
+function createCameraControlsUI(cam){
+    const { cam_id, intrinsics, extrinsics, color, image, points } = cam;
+    // Create UI for camera controls
+    const cameraGroup = document.createElement('div');
+    cameraGroup.className = 'control-group';
+    cameraGroup.innerHTML = `<p>Camera ${cam_id}</p>
+        <div class="input-group input-group-sm mb-3">
+            <span class="input-group-text" id="inputGroup-sizing-sm">X</span>
+            <input id="cam-${cam_id}-x" type="number" class="form-control" value="${extrinsics[0][3]}">
+            <span class="input-group-text" id="inputGroup-sizing-sm">Y</span>
+            <input id="cam-${cam_id}-y" type="number" class="form-control" value="${extrinsics[0][3]}">
+            <span class="input-group-text" id="inputGroup-sizing-sm">Z</span>
+            <input id="cam-${cam_id}-z" type="number" class="form-control" value="${extrinsics[0][3]}">
+        </div>`;
+
+    cameraControlsContainer.appendChild(cameraGroup);
+
+    // Add event listeners to update the camera position in Three.js
+    document.getElementById(`cam-${cam_id}-x`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'x'));
+    document.getElementById(`cam-${cam_id}-y`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'y'));
+    document.getElementById(`cam-${cam_id}-z`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'z'));
+}
+
+function getUnitScale(){
+    let unit_scale = parseFloat(document.getElementById("unit_scale").value);
+    // add an event listener to update `unit_scale` when the value changes
+    document.getElementById("unit_scale").addEventListener('input', function() {
+        unit_scale = parseFloat(this.value);
+        console.log('Unit scale updated to:', unit_scale);
+    });
+    return unit_scale;
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = ww / wh;
+    camera.updateProjectionMatrix();
+    renderer.setSize(ww, wh);
+});
+
+let scene = setupScene(); 
+let camera = setupCamera();
+let renderer = setupRenderer();
+let controls = setupControls();
+addHelpers(scene);
+addLights(scene);
+
+document.body.appendChild(renderer.domElement);
+
+const cameraControlsContainer = document.getElementById('camera-controls');
+const jointControlsContainer = document.getElementById('joint-controls');
 
 fetch('data.json')
     .then(response => response.json())
@@ -294,6 +318,8 @@ fetch('data.json')
         // Process cameras
         data.cameras.forEach(cam => {
             const { cam_id, intrinsics, extrinsics, color, image, points } = cam;
+            
+            createCameraControlsUI(cam);
             
             // Convert extrinsics matrix from 4x4 to 3x4 matrix
             const matrix = new THREE.Matrix4();
@@ -310,8 +336,6 @@ fetch('data.json')
             // The order parameter defines the order of rotations, e.g., 'XYZ', 'YXZ', etc.
             euler.setFromRotationMatrix(matrix, 'XYZ');
 
-            // euler.x = euler.x;
-            
             // Extract the angles in radians
             const rot_x = euler.x; // Rotation around X axis
             const rot_y = euler.y; // Rotation around Y axis
@@ -323,18 +347,22 @@ fetch('data.json')
             const rot_z_deg = THREE.MathUtils.radToDeg(rot_z);
             // console.log(rot_x_deg, rot_z_deg, rot_y_deg);
 
-            const unit_scale = 0.001; 
-            const cameraPosition = new THREE.Vector3(extrinsics[0][3]*unit_scale, extrinsics[1][3]*unit_scale, extrinsics[2][3]*unit_scale);
+            const unit_scale = getUnitScale();
+
+            const cam_center_local = new THREE.Vector4(0, 0, 0, 1.0);
+            const cam_center = cam_center_local.applyMatrix4(matrix).multiplyScalar(unit_scale);
+
             addCameraModel(
-                { x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z }, 
-                { x: rot_x, y: rot_y, z: rot_z },  
+                { x: cam_center.x, y: cam_center.y, z: cam_center.z}, 
+                { x: rot_x, y: rot_y, z: rot_z },  // only  for rotating the camera object (not it's axis)
                 color
             );
 
             // Add axes helper to visualize the local axes of the camera
-            const axesHelper = new THREE.AxesHelper(0.3); // Size of the axes helper
-            axesHelper.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
-            axesHelper.setRotationFromEuler(euler);
+            const axesHelper = new THREE.AxesHelper(1); // Size of the axes helper
+            axesHelper.position.set(cam_center.x, cam_center.y, cam_center.z);
+            // axesHelper.setRotationFromEuler(euler);
+            axesHelper.rotation.set(rot_x, rot_y, rot_z);
             scene.add(axesHelper);
 
             // Calculate focal length in the correct scale
@@ -342,7 +370,7 @@ fetch('data.json')
             // Position the image plane directly in front of the camera
             const planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
             // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
-            planePosition.applyEuler(euler).add(cameraPosition);
+            planePosition.applyEuler(euler).add(cam_center);
 
             // // Add the image plane
             // addImagePlan(
@@ -352,28 +380,34 @@ fetch('data.json')
             //     1000,
             //     color
             // );
-
-            // addImageAsPlane(
-            //     "images/00001_"+cam_id+".jpg",
-            //     { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
-            //     { x: rot_x, y: rot_y, z: rot_z },
-            //     1000
-            // );
+            
+            if (cam_id === "3"){
+                addImageAsPlane(
+                    "images/00001_"+cam_id+".jpg",
+                    { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
+                    { x: rot_x, y: rot_y, z: rot_z },
+                    1000,
+                    0.6
+                );
+            }
 
             let points3d = points.map(point => {
                 const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(unit_scale);
                 // Flip the y-axis
-                localPoint.y *= -1;
+                // localPoint.y *= -1;
 
-                return localPoint.applyEuler(euler).add(cameraPosition); // Transform to world coordinates
+                return localPoint.applyEuler(euler).add(cam_center); // Transform to world coordinates
                 // return localPoint;  // Return camera coordinates
             });
             
             points3d.forEach(point => {
                 addPoint(point.x, point.y, point.z, color, 0.005);
-                addLine(cameraPosition, point, color);
+                // addLine(cam_center, point, color, 0.5);
             });
 
+            // // Project 3D points to 2D image coordinates
+            // let points2d = points3d.map(point => projectPoint(point, intrinsics, matrix));
+            
             // Visualize the edges between joints
             const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
             [0, 5], [5, 6], [6, 7], [7, 8],
@@ -390,7 +424,6 @@ fetch('data.json')
                     color
                 );
             });
-            
         });
     })
     .catch(error => console.error('Error loading JSON file:', error));

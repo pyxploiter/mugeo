@@ -1,0 +1,67 @@
+body { margin: 0; }
+canvas { display: block; }
+/* Position the axis helper in the top right corner */
+#axisHelper {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+}
+
+/* Style each axis label */
+.axis {
+    width: 50px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    color: white;
+}
+
+/* X-axis in red */
+.x-axis {
+    background-color: red;
+    border-color: red;
+}
+
+/* Y-axis in green */
+.y-axis {
+    background-color: green;
+    border-color: green;
+}
+
+/* Z-axis in blue */
+.z-axis {
+    background-color: blue;
+    border-color: blue;
+}
+
+#ui {
+    position: absolute;
+    width: 300px;
+    height: 100vh;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #f0f0f0;
+    border-right: 1px solid #ccc;
+}
+#threejs-container {
+    flex-grow: 1;
+}
+.control-group {
+    margin-bottom: 15px;
+}
+.control-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+.control-group input {
+    width: 100%;
+}
