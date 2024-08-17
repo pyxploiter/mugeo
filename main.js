@@ -231,6 +231,12 @@ function addCameraModel(position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z
     });
 }
 
+window.addEventListener('resize', () => {
+    camera.aspect = ww / wh;
+    camera.updateProjectionMatrix();
+    renderer.setSize(ww, wh);
+});
+
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
@@ -261,27 +267,68 @@ function updateCameraPosition(x, y, z){
 
 }
 
-function createCameraControlsUI(cam){
+function updateJointPosition(x, y, z){
+
+}
+
+function createCameraControlsUI(cam, rot){
     const { cam_id, intrinsics, extrinsics, color, image, points } = cam;
+
+    // Convert radians to degrees if needed
+    const rot_x_deg = THREE.MathUtils.radToDeg(rot.x);
+    const rot_y_deg = THREE.MathUtils.radToDeg(rot.y);
+    const rot_z_deg = THREE.MathUtils.radToDeg(rot.z);
     // Create UI for camera controls
     const cameraGroup = document.createElement('div');
     cameraGroup.className = 'control-group';
     cameraGroup.innerHTML = `<p>Camera ${cam_id}</p>
         <div class="input-group input-group-sm mb-3">
-            <span class="input-group-text" id="inputGroup-sizing-sm">X</span>
-            <input id="cam-${cam_id}-x" type="number" class="form-control" value="${extrinsics[0][3]}">
-            <span class="input-group-text" id="inputGroup-sizing-sm">Y</span>
-            <input id="cam-${cam_id}-y" type="number" class="form-control" value="${extrinsics[0][3]}">
-            <span class="input-group-text" id="inputGroup-sizing-sm">Z</span>
-            <input id="cam-${cam_id}-z" type="number" class="form-control" value="${extrinsics[0][3]}">
+            <span class="input-group-text" id="inputGroup-sizing-sm">PX</span>
+            <input id="pos-${cam_id}-x" type="number" class="form-control" value="${extrinsics[0][3]}">
+            <span class="input-group-text" id="inputGroup-sizing-sm">PY</span>
+            <input id="pos-${cam_id}-y" type="number" class="form-control" value="${extrinsics[0][3]}">
+            <span class="input-group-text" id="inputGroup-sizing-sm">PZ</span>
+            <input id="pos-${cam_id}-z" type="number" class="form-control" value="${extrinsics[0][3]}">
+        </div>
+        <div class="input-group input-group-sm mb-3">
+            <span class="input-group-text" id="inputGroup-sizing-sm">RX</span>
+            <input id="rot-${cam_id}-x" type="number" class="form-control" value="${rot_x_deg}">
+            <span class="input-group-text" id="inputGroup-sizing-sm">RY</span>
+            <input id="rot-${cam_id}-y" type="number" class="form-control" value="${rot_y_deg}">
+            <span class="input-group-text" id="inputGroup-sizing-sm">RZ</span>
+            <input id="rot-${cam_id}-z" type="number" class="form-control" value="${rot_z_deg}">
         </div>`;
 
     cameraControlsContainer.appendChild(cameraGroup);
 
     // Add event listeners to update the camera position in Three.js
-    document.getElementById(`cam-${cam_id}-x`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'x'));
-    document.getElementById(`cam-${cam_id}-y`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'y'));
-    document.getElementById(`cam-${cam_id}-z`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'z'));
+    document.getElementById(`pos-${cam_id}-x`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'x'));
+    document.getElementById(`pos-${cam_id}-y`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'y'));
+    document.getElementById(`pos-${cam_id}-z`).addEventListener('input', (e) => updateCameraPosition(cam_id, e, 'z'));
+}
+
+function createJointsUI(points, cam_id){
+    // Create UI for joint controls
+    points.forEach((point, pointIndex) => {
+        const jointGroup = document.createElement('div');
+        jointGroup.className = 'control-group';
+        jointGroup.innerHTML = `<p>Joint ${pointIndex + 1} - Cam ${cam_id}</p>
+            <div class="input-group input-group-sm mb-3">
+                <span class="input-group-text" id="inputGroup-sizing-sm">X</span>
+                <input id="joint-${cam_id}-${pointIndex}-x" type="number" class="form-control" value="${point.x}" step="0.01">
+                <span class="input-group-text" id="inputGroup-sizing-sm">Y</span>
+                <input id="joint-${cam_id}-${pointIndex}-y" type="number" class="form-control" value="${point.y}" step="0.01">
+                <span class="input-group-text" id="inputGroup-sizing-sm">Z</span>
+                <input id="joint-${cam_id}-${pointIndex}-z" type="number" class="form-control" value="${point.z}" step="0.01">
+            </div>`;
+
+        jointControlsContainer.appendChild(jointGroup);
+
+        // Add event listeners to update the joint position in Three.js
+        document.getElementById(`joint-${cam_id}-${pointIndex}-x`).addEventListener('input', (e) => updateJointPosition(cam_id, pointIndex, e, 'x'));
+        document.getElementById(`joint-${cam_id}-${pointIndex}-y`).addEventListener('input', (e) => updateJointPosition(cam_id, pointIndex, e, 'y'));
+        document.getElementById(`joint-${cam_id}-${pointIndex}-z`).addEventListener('input', (e) => updateJointPosition(cam_id, pointIndex, e, 'z'));
+    });
 }
 
 function getUnitScale(){
@@ -294,11 +341,6 @@ function getUnitScale(){
     return unit_scale;
 }
 
-window.addEventListener('resize', () => {
-    camera.aspect = ww / wh;
-    camera.updateProjectionMatrix();
-    renderer.setSize(ww, wh);
-});
 
 let scene = setupScene(); 
 let camera = setupCamera();
@@ -319,8 +361,6 @@ fetch('data.json')
         data.cameras.forEach(cam => {
             const { cam_id, intrinsics, extrinsics, color, image, points } = cam;
             
-            createCameraControlsUI(cam);
-            
             // Convert extrinsics matrix from 4x4 to 3x4 matrix
             const matrix = new THREE.Matrix4();
             matrix.set(
@@ -336,17 +376,7 @@ fetch('data.json')
             // The order parameter defines the order of rotations, e.g., 'XYZ', 'YXZ', etc.
             euler.setFromRotationMatrix(matrix, 'XYZ');
 
-            // Extract the angles in radians
-            const rot_x = euler.x; // Rotation around X axis
-            const rot_y = euler.y; // Rotation around Y axis
-            const rot_z = euler.z; // Rotation around Z axis
-
-            // Convert radians to degrees if needed
-            const rot_x_deg = THREE.MathUtils.radToDeg(rot_x);
-            const rot_y_deg = THREE.MathUtils.radToDeg(rot_y);
-            const rot_z_deg = THREE.MathUtils.radToDeg(rot_z);
-            // console.log(rot_x_deg, rot_z_deg, rot_y_deg);
-
+            createCameraControlsUI(cam, euler);
             const unit_scale = getUnitScale();
 
             const cam_center_local = new THREE.Vector4(0, 0, 0, 1.0);
@@ -354,7 +384,7 @@ fetch('data.json')
 
             addCameraModel(
                 { x: cam_center.x, y: cam_center.y, z: cam_center.z}, 
-                { x: rot_x, y: rot_y, z: rot_z },  // only  for rotating the camera object (not it's axis)
+                { x: euler.x, y: euler.y, z: euler.z },  // only  for rotating the camera object (not it's axis)
                 color
             );
 
@@ -362,7 +392,7 @@ fetch('data.json')
             const axesHelper = new THREE.AxesHelper(1); // Size of the axes helper
             axesHelper.position.set(cam_center.x, cam_center.y, cam_center.z);
             // axesHelper.setRotationFromEuler(euler);
-            axesHelper.rotation.set(rot_x, rot_y, rot_z);
+            axesHelper.rotation.set(euler.x, euler.y, euler.z);
             scene.add(axesHelper);
 
             // Calculate focal length in the correct scale
@@ -375,7 +405,7 @@ fetch('data.json')
             // // Add the image plane
             // addImagePlan(
             //     { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
-            //     { x: rot_x, y: rot_y, z: rot_z },
+            //     { x: euler.x, y: euler.y, z: euler.z },
             //     { w: image.width, h: image.height },
             //     1000,
             //     color
@@ -385,7 +415,7 @@ fetch('data.json')
                 addImageAsPlane(
                     "images/00001_"+cam_id+".jpg",
                     { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
-                    { x: rot_x, y: rot_y, z: rot_z },
+                    { x: euler.x, y: euler.y, z: euler.z },
                     1000,
                     0.6
                 );
@@ -399,6 +429,8 @@ fetch('data.json')
                 return localPoint.applyEuler(euler).add(cam_center); // Transform to world coordinates
                 // return localPoint;  // Return camera coordinates
             });
+
+            // createJointsUI(points3d, cam_id);
             
             points3d.forEach(point => {
                 addPoint(point.x, point.y, point.z, color, 0.005);

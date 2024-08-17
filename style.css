@@ -45,23 +45,12 @@ canvas { display: block; }
 
 #ui {
     position: absolute;
-    width: 300px;
+    width: 400px;
     height: 100vh;
     padding: 20px;
     overflow-y: auto;
     background-color: #f0f0f0;
     border-right: 1px solid #ccc;
-}
-#threejs-container {
-    flex-grow: 1;
-}
-.control-group {
-    margin-bottom: 15px;
-}
-.control-group label {
-    display: block;
-    margin-bottom: 5px;
-}
-.control-group input {
-    width: 100%;
+    box-sizing: border-box;
+    resize: horizontal;
 }
