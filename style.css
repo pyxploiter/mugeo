@@ -29,18 +29,21 @@ canvas { display: block; }
 .x-axis {
     background-color: red;
     border-color: red;
+    cursor: pointer;
 }
 
 /* Y-axis in green */
 .y-axis {
     background-color: green;
     border-color: green;
+    cursor: pointer;
 }
 
 /* Z-axis in blue */
 .z-axis {
     background-color: blue;
     border-color: blue;
+    cursor: pointer;
 }
 
 #ui {
