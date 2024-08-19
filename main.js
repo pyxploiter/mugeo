@@ -81,6 +81,7 @@ function addPoint(x, y, z, color = 0xff0000, size = 0.05, opacity = 1.0) {
     let point = new THREE.Mesh(geometry, material);
     point.position.set(x, y, z);
     scene.add(point);
+    return point;
 }
 
 // Function to add lines between points
@@ -97,6 +98,7 @@ function addLine(point1, point2, color = 0x0000ff, opacity = 1.0) {
     ]);
     let line = new THREE.Line(geometry, material);
     scene.add(line);
+    return line;
 }
 
 // Function to add a text label at a 3D position
@@ -245,7 +247,7 @@ function CameraDevice(
     points3d, 
     image_dim, 
     color, 
-    scale = { trans: 1, points: 1 },
+    scale = { trans_scale: 1, points_scale: 1 },
     camera_model,
     axes_helper,
     cam_id, 
@@ -260,15 +262,30 @@ function CameraDevice(
     this.axes_helper = axes_helper;
     this.cam_id = cam_id;
     this.cam_label = cam_label;
+    this.points3d_world_elem = [];
+    this.lines_world_elem = [];
 
     this.points3d_world = this.points3d_local.map(point => {
-        const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(scale.points);
+        const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(scale.points_scale);
         return localPoint.applyEuler(extrinsics.rot).add(extrinsics.trans); // Transform to world coordinates
     });
     
     this.points3d_world.forEach(point => {
-        // addPoint(point.x, point.y, point.z, color, 0.005);
-        // addLine(extrinsics.trans, point, color, 0.3);
+        let pt = addPoint(point.x, point.y, point.z, color, 0.005);
+        this.points3d_world_elem.push(pt);
+        let line = addLine(extrinsics.trans, point, color, 0.3);
+        this.lines_world_elem.push(line);
+    });
+
+    // Visualize the edges between joints
+    HAND_EDGES.forEach(edge => {
+        const start = this.points3d_world[edge[0]];
+        const end = this.points3d_world[edge[1]];
+        addLine(
+            { x: start.x, y: start.y, z: start.z },
+            { x: end.x, y: end.y, z: end.z },
+            color
+        );
     });
 }
 
@@ -388,6 +405,17 @@ function updateCameraPosition(cam) {
         cam.axes_helper.position.set(trans.x, trans.y, trans.z);
         cam.camera_model.rotation.set(rot.x, rot.y, rot.z);
         cam.axes_helper.rotation.set(rot.x, rot.y, rot.z);
+
+        cam.lines_world_elem.forEach(function(line) {
+            line.geometry.attributes.position.array[0] = trans.x;
+            line.geometry.attributes.position.array[1] = trans.y;
+            line.geometry.attributes.position.array[2] = trans.z;
+            
+            // Notify Three.js of the geometry change
+            line.geometry.attributes.position.needsUpdate = true;
+        });
+
+        // console.log(cam.lines_world_elem);
     } else {
         console.error(`Camera not found.`);
     }
@@ -482,6 +510,12 @@ let camera_devices = [];  // for storing camera informations
 addHelpers(scene);
 addLights(scene);
 
+const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
+    [0, 5], [5, 6], [6, 7], [7, 8],
+    [0, 9], [9, 10], [10, 11], [11, 12],
+    [0, 13], [13, 14], [14, 15], [15, 16],
+    [0, 17], [17, 18], [18, 19], [19, 20]];
+
 document.body.appendChild(renderer.domElement);
 
 const cameraControlsContainer = document.getElementById('camera-controls');
@@ -521,17 +555,17 @@ fetch('data.json')
                 extrinsics[3][0], extrinsics[3][1], extrinsics[3][2], extrinsics[3][3]
             );
 
-            // Create a new Euler object
-            const euler = new THREE.Euler();
+            // // Create a new Euler object
+            // const euler = new THREE.Euler();
 
-            // The order parameter defines the order of rotations, e.g., 'XYZ', 'YXZ', etc.
-            euler.setFromRotationMatrix(matrix, 'XYZ');
+            // // The order parameter defines the order of rotations, e.g., 'XYZ', 'YXZ', etc.
+            // euler.setFromRotationMatrix(matrix, 'XYZ');
 
-            // createCameraControlsUI(cam, euler);
-            const extr_unit_scale = getUnitScale();
+            // // createCameraControlsUI(cam, euler);
+            // const extr_unit_scale = getUnitScale();
 
-            const cam_center_local = new THREE.Vector4(0, 0, 0, 1.0);
-            const cam_center = cam_center_local.applyMatrix4(matrix).multiplyScalar(extr_unit_scale);
+            // const cam_center_local = new THREE.Vector4(0, 0, 0, 1.0);
+            // const cam_center = cam_center_local.applyMatrix4(matrix).multiplyScalar(extr_unit_scale);
 
             // console.log(cam_center, extrinsics[0][3]*extr_unit_scale, extrinsics[1][3]*extr_unit_scale, extrinsics[2][3]*extr_unit_scale );
 
@@ -550,13 +584,13 @@ fetch('data.json')
             // axesHelper.rotation.set(euler.x, euler.y, euler.z);
             // scene.add(axesHelper);
 
-            const intr_unit_scale = 0.001;
-            // Calculate focal length in the correct scale
-            const focal_length = intrinsics[0] * intr_unit_scale;
-            // Position the image plane directly in front of the camera
-            const planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
-            // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
-            planePosition.applyEuler(euler).add(cam_center);
+            // const intr_unit_scale = 0.001;
+            // // Calculate focal length in the correct scale
+            // const focal_length = intrinsics[0] * intr_unit_scale;
+            // // Position the image plane directly in front of the camera
+            // const planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
+            // // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
+            // planePosition.applyEuler(euler).add(cam_center);
 
             // // Add the image plane
             // addImagePlan(
@@ -577,14 +611,14 @@ fetch('data.json')
             //     );
             // }
 
-            let points3d = points.map(point => {
-                const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(intr_unit_scale);
-                // Flip the y-axis
-                // localPoint.y *= -1;
+            // let points3d = points.map(point => {
+            //     const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(intr_unit_scale);
+            //     // Flip the y-axis
+            //     // localPoint.y *= -1;
 
-                return localPoint.applyEuler(euler).add(cam_center); // Transform to world coordinates
-                // return localPoint;  // Return camera coordinates
-            });
+            //     return localPoint.applyEuler(euler).add(cam_center); // Transform to world coordinates
+            //     // return localPoint;  // Return camera coordinates
+            // });
 
             // createJointsUI(points3d, cam_id);
             
@@ -596,22 +630,22 @@ fetch('data.json')
             // // Project 3D points to 2D image coordinates
             // let points2d = points3d.map(point => projectPoint(point, intrinsics, matrix));
             
-            // Visualize the edges between joints
-            const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
-            [0, 5], [5, 6], [6, 7], [7, 8],
-            [0, 9], [9, 10], [10, 11], [11, 12],
-            [0, 13], [13, 14], [14, 15], [15, 16],
-            [0, 17], [17, 18], [18, 19], [19, 20]];
+            // // Visualize the edges between joints
+            // const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
+            // [0, 5], [5, 6], [6, 7], [7, 8],
+            // [0, 9], [9, 10], [10, 11], [11, 12],
+            // [0, 13], [13, 14], [14, 15], [15, 16],
+            // [0, 17], [17, 18], [18, 19], [19, 20]];
 
-            HAND_EDGES.forEach(edge => {
-                const start = points3d[edge[0]];
-                const end = points3d[edge[1]];
-                // addLine(
-                //     { x: start.x, y: start.y, z: start.z },
-                //     { x: end.x, y: end.y, z: end.z },
-                //     color
-                // );
-            });
+            // HAND_EDGES.forEach(edge => {
+            //     const start = points3d[edge[0]];
+            //     const end = points3d[edge[1]];
+            //     // addLine(
+            //     //     { x: start.x, y: start.y, z: start.z },
+            //     //     { x: end.x, y: end.y, z: end.z },
+            //     //     color
+            //     // );
+            // });
         });
     })
     .catch(error => console.error('Error loading JSON file:', error));

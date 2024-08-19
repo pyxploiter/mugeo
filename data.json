@@ -2,8 +2,10 @@
     "cameras": [
         {
             "cam_id": "0",
-            "dataset_cam_name": "840412062035",
+            "cam_label": "840412062035",
             "color": "rgb(255, 0, 0)",
+            "trans_scale": 0.001,
+            "points_scale": 0.001,
             "image": {
                 "height": 480,
                 "width": 640
@@ -21,8 +23,10 @@
         },
         {
             "cam_id": "1",
-            "dataset_cam_name": "840412062037",
+            "cam_label": "840412062037",
             "color": "rgb(0, 255, 0)",
+            "trans_scale": 0.001,
+            "points_scale": 0.001,
             "image": {
                 "height": 480,
                 "width": 640
@@ -40,8 +44,10 @@
         },
         {
             "cam_id": "2",
-            "dataset_cam_name": "840412062038",
+            "cam_label": "840412062038",
             "color": "rgb(0, 0, 255)",
+            "trans_scale": 0.001,
+            "points_scale": 0.001,
             "image": {
                 "height": 480,
                 "width": 640
@@ -59,8 +65,10 @@
         },
         {
             "cam_id": "3", 
-            "dataset_cam_name": "840412062076",
+            "cam_label": "840412062076",
             "color": "rgb(0, 0, 0)",
+            "trans_scale": 0.001,
+            "points_scale": 0.001,
             "image": {
                 "height": 480,
                 "width": 640
