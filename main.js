@@ -341,7 +341,6 @@ function getUnitScale(){
     return unit_scale;
 }
 
-
 let scene = setupScene(); 
 let camera = setupCamera();
 let renderer = setupRenderer();
@@ -377,10 +376,10 @@ fetch('data.json')
             euler.setFromRotationMatrix(matrix, 'XYZ');
 
             createCameraControlsUI(cam, euler);
-            const unit_scale = getUnitScale();
+            const extr_unit_scale = getUnitScale();
 
             const cam_center_local = new THREE.Vector4(0, 0, 0, 1.0);
-            const cam_center = cam_center_local.applyMatrix4(matrix).multiplyScalar(unit_scale);
+            const cam_center = cam_center_local.applyMatrix4(matrix).multiplyScalar(extr_unit_scale);
 
             addCameraModel(
                 { x: cam_center.x, y: cam_center.y, z: cam_center.z}, 
@@ -389,14 +388,15 @@ fetch('data.json')
             );
 
             // Add axes helper to visualize the local axes of the camera
-            const axesHelper = new THREE.AxesHelper(1); // Size of the axes helper
+            const axesHelper = new THREE.AxesHelper(0.5); // Size of the axes helper
             axesHelper.position.set(cam_center.x, cam_center.y, cam_center.z);
             // axesHelper.setRotationFromEuler(euler);
             axesHelper.rotation.set(euler.x, euler.y, euler.z);
             scene.add(axesHelper);
 
+            const intr_unit_scale = 0.001;
             // Calculate focal length in the correct scale
-            const focal_length = intrinsics[0] * unit_scale;
+            const focal_length = intrinsics[0] * intr_unit_scale;
             // Position the image plane directly in front of the camera
             const planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
             // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
@@ -411,7 +411,7 @@ fetch('data.json')
             //     color
             // );
             
-            if (cam_id === "3"){
+            if (cam_id === "0"){
                 addImageAsPlane(
                     "images/00001_"+cam_id+".jpg",
                     { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
@@ -422,7 +422,7 @@ fetch('data.json')
             }
 
             let points3d = points.map(point => {
-                const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(unit_scale);
+                const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(intr_unit_scale);
                 // Flip the y-axis
                 // localPoint.y *= -1;
 
@@ -434,7 +434,7 @@ fetch('data.json')
             
             points3d.forEach(point => {
                 addPoint(point.x, point.y, point.z, color, 0.005);
-                // addLine(cam_center, point, color, 0.5);
+                addLine(cam_center, point, color, 0.3);
             });
 
             // // Project 3D points to 2D image coordinates
