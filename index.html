@@ -8,25 +8,53 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div id="axisHelper">
-        <div id="x-axis" class="axis x-axis">X</div>
-        <div id="y-axis" class="axis y-axis">Y</div>
-        <div id="z-axis" class="axis z-axis">Z</div>
+    
+    <div class="wrapper">
+        <div class="leftbar">
+            <h5>Camera Controls</h5>
+            <div class="accordion accordion-flush" id="camera-controls"></div>
+        </div>
+        <div class="topbar">
+            <!-- Checkbox to toggle the visibility -->
+            <div class="toggle-container">
+                <span class="toggle-text">Axes Helper</span>
+                <input type="checkbox" id="toggle-axes-helper" class="toggle-checkbox">
+                <label for="toggle-axes-helper" class="toggle-label">
+                    <span class="toggle-button"></span>
+                </label>
+                <span class="toggle-text">Projection Lines</span>
+                <input type="checkbox" id="toggle-proj-lines" class="toggle-checkbox">
+                <label for="toggle-proj-lines" class="toggle-label">
+                    <span class="toggle-button"></span>
+                </label>
+                <span class="toggle-text">Image Planes</span>
+                <input type="checkbox" id="toggle-img-planes" class="toggle-checkbox">
+                <label for="toggle-img-planes" class="toggle-label">
+                    <span class="toggle-button"></span>
+                </label>
+                <span class="toggle-text">Images</span>
+                <input type="checkbox" id="toggle-imgs" class="toggle-checkbox">
+                <label for="toggle-imgs" class="toggle-label">
+                    <span class="toggle-button"></span>
+                </label>
+            </div>
+        </div>
+        <div class="rightbar">
+            <div id="axis-direction">
+                <div id="x-axis" class="axis x-axis">X</div>
+                <div id="y-axis" class="axis y-axis">Y</div>
+                <div id="z-axis" class="axis z-axis">Z</div>
+            </div>
+            <!-- <div class="input-group input-group-sm mb-3">
+                <span class="input-group-text" id="image-dir-label">Image Folder</span>
+                <input type="text" id="image-dir" class="form-control" aria-label="image-dir-label" aria-describedby="image-dir-label" value="dexycb">
+            </div> -->
+        </div>
+        <div class="main" id="main"></div>
     </div>
-    <div id="ui">
-        <!-- <div class="input-group input-group-sm mb-3">
-            <span class="input-group-text" id="inputGroup-sizing-sm">Scaling Unit</span>
-            <input id="unit_scale" type="number" class="form-control" value="0.001" step="0.01">
-        </div> -->
-        <!-- Camera Controls -->
-        <h5>Camera Controls</h5>
-        <div id="camera-controls"></div>
+    
 
-        <!-- Joint Controls -->
-        <!-- <h5>Joint Controls</h5>
-        <div id="joint-controls"></div> -->
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script type="importmap">
 		{
 		  "imports": {

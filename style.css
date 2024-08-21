@@ -1,59 +1,150 @@
 body { margin: 0; }
 canvas { display: block; }
-/* Position the axis helper in the top right corner */
-#axisHelper {
-    position: fixed;
-    top: 10px;
-    right: 10px;
+
+/*--------------------------------------------------------------
+# Layout
+--------------------------------------------------------------*/
+.wrapper {  
+    height: 100vh;
+    width: 100vw;
+    position: relative; 
+}
+  
+.leftbar { 
+    padding: 20px;
+    overflow-y: auto;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-right: 1px solid #ccc;
+    box-sizing: border-box;
+    resize: horizontal;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20%;
+    height: 100vh;
+    z-index: 2;
+}
+
+.topbar { 
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.5);
+    position: absolute;
+    top: 0;
+    width: 100vw;
+    height: 70px;
+    z-index: 1;
+}
+
+.rightbar { 
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-left: 1px solid #ccc;
+    box-sizing: border-box;
+    resize: horizontal;
+    position: absolute; 
+    top: 0;
+    right: 0;
+    width: 15%;
+    height: 100vh;
+    z-index: 2;
+}
+
+.main { 
+    grid-area: main; 
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    z-index: 0;
+}
+  
+  
+/*--------------------------------------------------------------
+# Axis direction buttons
+--------------------------------------------------------------*/
+#axis-direction {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
+    justify-content: center;
     font-family: Arial, sans-serif;
     font-size: 16px;
 }
 
-/* Style each axis label */
 .axis {
-    width: 50px;
-    height: 20px;
+    width: 60px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 2px;
-    border: 2px solid transparent;
-    border-radius: 4px;
+    margin: 4px;
+    border-radius: 10px;
     color: white;
 }
 
-/* X-axis in red */
 .x-axis {
     background-color: red;
-    border-color: red;
     cursor: pointer;
 }
 
-/* Y-axis in green */
 .y-axis {
-    background-color: green;
-    border-color: green;
+    background-color: rgb(3, 187, 3);
     cursor: pointer;
 }
 
-/* Z-axis in blue */
 .z-axis {
     background-color: blue;
-    border-color: blue;
     cursor: pointer;
 }
 
-#ui {
+/*--------------------------------------------------------------
+# Axes Helper Toggles
+--------------------------------------------------------------*/
+.toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-text {
+    margin-right: 10px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+}
+
+.toggle-checkbox {
+    display: none;
+}
+
+.toggle-label {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
+    background-color: #ccc;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    
+    margin-right: 20px;
+}
+
+.toggle-label .toggle-button {
     position: absolute;
-    width: 400px;
-    height: 100vh;
-    padding: 20px;
-    overflow-y: auto;
-    background-color: #f0f0f0;
-    border-right: 1px solid #ccc;
-    box-sizing: border-box;
-    resize: horizontal;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    background-color: #fff;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background-color: #4CAF50;
+}
+
+.toggle-checkbox:checked + .toggle-label .toggle-button {
+    transform: translateX(30px);
 }

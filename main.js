@@ -3,13 +3,18 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 
-const ww = window.innerWidth;
-const wh = window.innerHeight;
+const scene_window = document.getElementById('main');
+const ww = scene_window.clientWidth;
+const wh = scene_window.clientHeight;
+
+// const ww = window.innerWidth;
+// const wh = window.innerHeight;
 
 function setupScene(){
     // Basic Three.js setup
     let scene = new THREE.Scene();
     scene.background = new THREE.Color('#eee');
+    // scene.background = new THREE.Color(0x121212);
 
     // flip x and y axes, 
     scene.scale.set(-1, -1, 1); 
@@ -52,12 +57,14 @@ function setupControls(){
 
 function addHelpers(scene){
     // 100x100 grid 
-    let gridHelper = new THREE.GridHelper(10, 100);
+    let cells = 10;
+    let divisions = 100;
+    let gridHelper = new THREE.GridHelper(cells, divisions, '#aaa', '#aaa');
     gridHelper.position.set(0, 0, 0);
     scene.add(gridHelper);
 
-    // // Adding origin axes
-    let axesHelper = new THREE.AxesHelper(5);
+    // Adding origin axes
+    let axesHelper = new THREE.AxesHelper(cells/2);
     scene.add(axesHelper);
 }
 
@@ -80,7 +87,7 @@ function addPoint(x, y, z, color = 0xff0000, size = 0.05, opacity = 1.0) {
     });
     let point = new THREE.Mesh(geometry, material);
     point.position.set(x, y, z);
-    scene.add(point);
+    // scene.add(point);
     return point;
 }
 
@@ -97,7 +104,7 @@ function addLine(point1, point2, color = 0x0000ff, opacity = 1.0) {
         new THREE.Vector3(point2.x, point2.y, point2.z)
     ]);
     let line = new THREE.Line(geometry, material);
-    scene.add(line);
+    // scene.add(line);
     return line;
 }
 
@@ -105,7 +112,7 @@ function addLine(point1, point2, color = 0x0000ff, opacity = 1.0) {
 function addTextLabel(x, y, z, text, color) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    context.font = '16px Arial';
+    context.font = '20px Arial';
     context.fillStyle = color;
     context.fillText(text, 0, 24);
 
@@ -116,11 +123,12 @@ function addTextLabel(x, y, z, text, color) {
     sprite.scale.set(0.5, 0.25, 1); // Adjust based on your scene scale
     sprite.position.set(x, y, z);
 
-    scene.add(sprite);
+    // scene.add(sprite);
+    return sprite
 }
 
 // Function to add a 2D image as a plane in 3D space with pixel-to-cell conversion
-function addImageAsPlane(imagePath, position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, pixelsPerCell = 100, opacity = 0.5) {
+function addImageAsPlane(imagePath, position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, pixelsPerCell = 100, opacity = 0.5, onLoadCallback) {
     // Load the image to get its dimensions
     const image = new Image();
     image.src = imagePath;
@@ -158,6 +166,12 @@ function addImageAsPlane(imagePath, position = {x: 0, y: 0, z: 0}, rotation = {x
 
             // Add the plane to the scene
             scene.add(plane);
+            // invisible by default
+            plane.visible = false;
+            // Call the onLoadCallback and pass the created plane
+            if (onLoadCallback) {
+                onLoadCallback(plane);
+            }
         });
     };
 
@@ -166,7 +180,7 @@ function addImageAsPlane(imagePath, position = {x: 0, y: 0, z: 0}, rotation = {x
     };
 }
 
-function addImagePlan(position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, image_shape = {w: 0, h: 0}, pixelsPerCell = 1000, color = 0x000000) {
+function addPlane(position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, image_shape = {w: 0, h: 0}, pixelsPerCell = 1000, color = 0x000000, opacity = 0.2) {
     // Get image dimensions in pixels
     const pixelWidth = image_shape.w;
     const pixelHeight = image_shape.h;
@@ -177,7 +191,7 @@ function addImagePlan(position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 
 
     // Create a plane geometry with the converted dimensions
     const geometry = new THREE.PlaneGeometry(widthInCells, heightInCells);
-    const material = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+    const material = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: opacity, side: THREE.DoubleSide });
         
     const plane = new THREE.Mesh(geometry, material);
 
@@ -185,11 +199,12 @@ function addImagePlan(position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 
     plane.position.set(position.x, position.y, position.z);
     plane.rotation.set(rotation.x, rotation.y, rotation.z); // Rotation in radians
 
-    // Add the plane to the scene
-    scene.add(plane);
+    // // Add the plane to the scene
+    // scene.add(plane);
+    return plane;
 }
 
-function addCameraModel(position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, color = "rgb(255, 0, 0)") {
+function addCameraModel(cam_id, position = {x: 0, y: 0, z: 0}, rotation = {x: 0, y: 0, z: 0}, color = "rgb(255, 0, 0)") {
     let cameraModel;
     const loader = new GLTFLoader();
 
@@ -263,7 +278,9 @@ function CameraDevice(
     this.cam_id = cam_id;
     this.cam_label = cam_label;
     this.points3d_world_elem = [];
-    this.lines_world_elem = [];
+    this.proj_lines_elem = [];
+    this.hand_edges_elem = [];
+    this.camera_model_label = addTextLabel(extrinsics.trans.x, extrinsics.trans.y, extrinsics.trans.z, "camera-"+cam_id, color);
 
     this.points3d_world = this.points3d_local.map(point => {
         const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(scale.points_scale);
@@ -274,19 +291,62 @@ function CameraDevice(
         let pt = addPoint(point.x, point.y, point.z, color, 0.005);
         this.points3d_world_elem.push(pt);
         let line = addLine(extrinsics.trans, point, color, 0.3);
-        this.lines_world_elem.push(line);
+        this.proj_lines_elem.push(line);
     });
 
     // Visualize the edges between joints
     HAND_EDGES.forEach(edge => {
         const start = this.points3d_world[edge[0]];
         const end = this.points3d_world[edge[1]];
-        addLine(
+        let line = addLine(
             { x: start.x, y: start.y, z: start.z },
             { x: end.x, y: end.y, z: end.z },
             color
         );
+        this.hand_edges_elem.push(line);
     });
+
+    this.scale.focal_scale = 0.001;
+    // Calculate focal length in the correct scale
+    const focal_length = intrinsics.fx * this.scale.focal_scale;
+    // Position the image plane directly in front of the camera
+    this.planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
+    // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
+    this.planePosition.applyEuler(extrinsics.rot).add(extrinsics.trans);
+
+    // Add the image plane
+    this.image_plane = addPlane(
+                        { x: this.planePosition.x, y: this.planePosition.y, z: this.planePosition.z }, 
+                        { x: extrinsics.rot.x, y: extrinsics.rot.y, z: extrinsics.rot.z },
+                        { w: image_dim.width, h: image_dim.height },
+                        1000,
+                        color,
+                        0.2
+                    );
+    
+    // // Add the image itself
+    // this.image = addImageAsPlane(
+    //                 "images/cam"+cam_id+".jpg",
+    //                 { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
+    //                 { x: extrinsics.rot.x, y: extrinsics.rot.y, z: extrinsics.rot.z },
+    //                 1000,
+    //                 0.6
+    //             );
+
+    const image_dir = FILE_PATH.split('.')[0];
+    
+    // Add the image itself
+    addImageAsPlane(
+        image_dir+"/cam"+cam_id+".png",
+        { x: this.planePosition.x, y: this.planePosition.y, z: this.planePosition.z }, 
+        { x: extrinsics.rot.x, y: extrinsics.rot.y, z: extrinsics.rot.z },
+        1000,
+        0.5,
+        function(plane) {
+            // This callback is called once the plane has been created
+            this.image = plane;
+        }.bind(this)
+    );
 }
 
 function loadDataFromJson(filepath) {
@@ -329,12 +389,7 @@ function loadDataFromJson(filepath) {
                         "trans": translation
                     }
 
-                    return addCameraModel(translation, rotation, color).then(cameraModel => {
-                        // let cam_center_local = new THREE.Vector4(0, 0, 0, 1.0);
-                        // const cam_center = cam_center_local.applyMatrix4(ext_matrix).multiplyScalar(trans_scale);
-                        // let axesHelper = new THREE.AxesHelper(0.5); // Size of the axes helper
-                        // axesHelper.position.set(cam_center.x, cam_center.y, cam_center.z);
-
+                    return addCameraModel(cam_id, translation, rotation, color).then(cameraModel => {
                         // Add axes helper to visualize the local axes of the camera
                         let axesHelper = new THREE.AxesHelper(1.0); // Size of the axes helper
                         axesHelper.position.set(translation.x, translation.y, translation.z);
@@ -365,25 +420,6 @@ function loadDataFromJson(filepath) {
     });
 }
 
-function projectPoint(point3D, intrinsics, extrinsics) {
-    // Convert the 3D point to homogeneous coordinates (4D)
-    const point3DHomogeneous = new THREE.Vector4(point3D.x, point3D.y, point3D.z, 1.0);
-    
-    // Apply the extrinsics matrix to transform the point to camera coordinates
-    const cameraCoords = point3DHomogeneous.applyMatrix4(extrinsics);
-
-    // Apply the intrinsic matrix to project the point onto the 2D image plane
-    const fx = intrinsics[0];
-    const fy = intrinsics[1];
-    const cx = intrinsics[2];
-    const cy = intrinsics[3];
-
-    const x2D = (cameraCoords.x / cameraCoords.z) * fx + cx;
-    const y2D = (cameraCoords.y / cameraCoords.z) * fy + cy;
-
-    return { x: x2D, y: y2D };
-}
-
 function updateCameraPosition(cam) {
     cam.cam_params.extrinsics.trans = {
         "x": parseFloat(document.getElementById(`pos-${cam.cam_id}-x`).value),
@@ -406,7 +442,10 @@ function updateCameraPosition(cam) {
         cam.camera_model.rotation.set(rot.x, rot.y, rot.z);
         cam.axes_helper.rotation.set(rot.x, rot.y, rot.z);
 
-        cam.lines_world_elem.forEach(function(line) {
+        cam.camera_model_label.position.set(trans.x, trans.y, trans.z);
+        cam.camera_model_label.rotation.set(rot.x, rot.y, rot.z);
+
+        cam.proj_lines_elem.forEach(function(line) {
             line.geometry.attributes.position.array[0] = trans.x;
             line.geometry.attributes.position.array[1] = trans.y;
             line.geometry.attributes.position.array[2] = trans.z;
@@ -415,41 +454,53 @@ function updateCameraPosition(cam) {
             line.geometry.attributes.position.needsUpdate = true;
         });
 
-        // console.log(cam.lines_world_elem);
+        // cam.image_plane.position.set(trans.x, trans.y, trans.z + (cam.cam_params.intrinsics.fx * cam.scale.focal_scale));
+        // cam.image_plane.rotation.set(rot.x, rot.y, rot.z);
+
     } else {
         console.error(`Camera not found.`);
     }
 }
 
-function updateJointPosition(x, y, z){
-
-}
-
 function createCameraControlsUI(cam){
     let trans = cam.cam_params.extrinsics.trans;
     let rot = cam.cam_params.extrinsics.rot;
-    // Create UI for camera controls
-    const cameraGroup = document.createElement('div');
-    cameraGroup.className = 'control-group';
-    cameraGroup.innerHTML = `<p>Camera ${cam.cam_id}</p>
-        <div class="input-group input-group-sm mb-3">
-            <span class="input-group-text" id="inputGroup-sizing-sm">PX</span>
-            <input id="pos-${cam.cam_id}-x" type="number" class="form-control" value="${trans.x}" step="0.01">
-            <span class="input-group-text" id="inputGroup-sizing-sm">PY</span>
-            <input id="pos-${cam.cam_id}-y" type="number" class="form-control" value="${trans.y}" step="0.01">
-            <span class="input-group-text" id="inputGroup-sizing-sm">PZ</span>
-            <input id="pos-${cam.cam_id}-z" type="number" class="form-control" value="${trans.z}" step="0.01">
-        </div>
-        <div class="input-group input-group-sm mb-3">
-            <span class="input-group-text" id="inputGroup-sizing-sm">RX</span>
-            <input id="rot-${cam.cam_id}-x" type="number" class="form-control" value="${THREE.MathUtils.radToDeg(rot.x)}">
-            <span class="input-group-text" id="inputGroup-sizing-sm">RY</span>
-            <input id="rot-${cam.cam_id}-y" type="number" class="form-control" value="${THREE.MathUtils.radToDeg(rot.y)}">
-            <span class="input-group-text" id="inputGroup-sizing-sm">RZ</span>
-            <input id="rot-${cam.cam_id}-z" type="number" class="form-control" value="${THREE.MathUtils.radToDeg(rot.z)}">
-        </div>`;
+    // Create an accordion item for the camera
+    const cameraItem = document.createElement('div');
+    cameraItem.className = 'accordion-item';
 
-    cameraControlsContainer.appendChild(cameraGroup);
+    // Accordion header
+    cameraItem.innerHTML = `
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${cam.cam_id}" aria-expanded="false" aria-controls="collapse-${cam.cam_id}">
+                Camera-${cam.cam_id}
+                <span style="margin-left: 10px; background-color: ${cam.color}; opacity:0.5; width: 40px; height: 20px;"></span>
+            </button>
+        </h2>
+        <div id="collapse-${cam.cam_id}" class="accordion-collapse collapse" data-bs-parent="#camera-controls">
+            <div class="accordion-body">
+                <div class="input-group input-group-sm mb-3">
+                    <span class="input-group-text" id="inputGroup-sizing-sm">PX</span>
+                    <input id="pos-${cam.cam_id}-x" type="number" class="form-control" value="${trans.x}" step="0.01">
+                    <span class="input-group-text" id="inputGroup-sizing-sm">PY</span>
+                    <input id="pos-${cam.cam_id}-y" type="number" class="form-control" value="${trans.y}" step="0.01">
+                    <span class="input-group-text" id="inputGroup-sizing-sm">PZ</span>
+                    <input id="pos-${cam.cam_id}-z" type="number" class="form-control" value="${trans.z}" step="0.01">
+                </div>
+                <div class="input-group input-group-sm mb-3">
+                    <span class="input-group-text" id="inputGroup-sizing-sm">RX</span>
+                    <input id="rot-${cam.cam_id}-x" type="number" class="form-control" value="${THREE.MathUtils.radToDeg(rot.x)}">
+                    <span class="input-group-text" id="inputGroup-sizing-sm">RY</span>
+                    <input id="rot-${cam.cam_id}-y" type="number" class="form-control" value="${THREE.MathUtils.radToDeg(rot.y)}">
+                    <span class="input-group-text" id="inputGroup-sizing-sm">RZ</span>
+                    <input id="rot-${cam.cam_id}-z" type="number" class="form-control" value="${THREE.MathUtils.radToDeg(rot.z)}">
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Append the camera item to the accordion container
+    cameraControlsContainer.appendChild(cameraItem);
 
     // Add event listeners to update the camera position in Three.js
     document.getElementById(`pos-${cam.cam_id}-x`).addEventListener('input', (e) => updateCameraPosition(cam));
@@ -460,40 +511,6 @@ function createCameraControlsUI(cam){
     document.getElementById(`rot-${cam.cam_id}-x`).addEventListener('input', (e) => updateCameraPosition(cam));
     document.getElementById(`rot-${cam.cam_id}-y`).addEventListener('input', (e) => updateCameraPosition(cam));
     document.getElementById(`rot-${cam.cam_id}-z`).addEventListener('input', (e) => updateCameraPosition(cam));
-}
-
-function createJointsUI(points, cam_id){
-    // Create UI for joint controls
-    points.forEach((point, pointIndex) => {
-        const jointGroup = document.createElement('div');
-        jointGroup.className = 'control-group';
-        jointGroup.innerHTML = `<p>Joint ${pointIndex + 1} - Cam ${cam_id}</p>
-            <div class="input-group input-group-sm mb-3">
-                <span class="input-group-text" id="inputGroup-sizing-sm">X</span>
-                <input id="joint-${cam_id}-${pointIndex}-x" type="number" class="form-control" value="${point.x}" step="0.01">
-                <span class="input-group-text" id="inputGroup-sizing-sm">Y</span>
-                <input id="joint-${cam_id}-${pointIndex}-y" type="number" class="form-control" value="${point.y}" step="0.01">
-                <span class="input-group-text" id="inputGroup-sizing-sm">Z</span>
-                <input id="joint-${cam_id}-${pointIndex}-z" type="number" class="form-control" value="${point.z}" step="0.01">
-            </div>`;
-
-        jointControlsContainer.appendChild(jointGroup);
-
-        // Add event listeners to update the joint position in Three.js
-        document.getElementById(`joint-${cam_id}-${pointIndex}-x`).addEventListener('input', (e) => updateJointPosition(cam_id, pointIndex, e, 'x'));
-        document.getElementById(`joint-${cam_id}-${pointIndex}-y`).addEventListener('input', (e) => updateJointPosition(cam_id, pointIndex, e, 'y'));
-        document.getElementById(`joint-${cam_id}-${pointIndex}-z`).addEventListener('input', (e) => updateJointPosition(cam_id, pointIndex, e, 'z'));
-    });
-}
-
-function getUnitScale(){
-    let unit_scale = parseFloat(document.getElementById("unit_scale").value);
-    // add an event listener to update `unit_scale` when the value changes
-    document.getElementById("unit_scale").addEventListener('input', function() {
-        unit_scale = parseFloat(this.value);
-        console.log('Unit scale updated to:', unit_scale);
-    });
-    return unit_scale;
 }
 
 window.addEventListener('resize', () => {
@@ -516,18 +533,42 @@ const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
     [0, 13], [13, 14], [14, 15], [15, 16],
     [0, 17], [17, 18], [18, 19], [19, 20]];
 
-document.body.appendChild(renderer.domElement);
+// document.body.appendChild(renderer.domElement);
+scene_window.appendChild(renderer.domElement);
 
 const cameraControlsContainer = document.getElementById('camera-controls');
 const jointControlsContainer = document.getElementById('joint-controls');
 
-loadDataFromJson('data.json')
+// const FILE_PATH = "data.json";
+// const FILE_PATH = "shs.json";
+const FILE_PATH = "dexycb.json";
+
+loadDataFromJson(FILE_PATH)
     .then(cameras => {
         cameras.forEach(cam => {
-            console.log("camera:", cam);
-            // console.log(cam.camera_model);
+            // camera model
             scene.add(cam.camera_model);
+            // camera label
+            scene.add(cam.camera_model_label);
+            // cameras axes helper
             scene.add(cam.axes_helper);
+            cam.axes_helper.visible = false; // invisible by default
+            // hand points
+            cam.points3d_world_elem.forEach(pt => {
+                scene.add(pt);
+            });
+            // hand edges
+            cam.hand_edges_elem.forEach(edge => {
+                scene.add(edge);
+            });
+            // projection lines from points to camera
+            cam.proj_lines_elem.forEach(proj_line => {
+                scene.add(proj_line);
+                proj_line.visible = false; // invisible by default
+            });;
+            // empty image plane
+            scene.add(cam.image_plane);
+            cam.image_plane.visible = false; // invisible by default
 
             createCameraControlsUI(cam);
         });
@@ -537,127 +578,49 @@ loadDataFromJson('data.json')
         console.error('Error:', error);
     });
 
-
-// console.log(cameras);
-fetch('data.json')
-    .then(response => response.json())
-    .then(data => {
-        // Process cameras
-        data.cameras.forEach(cam => {
-            const { cam_id, intrinsics, extrinsics, color, image, points } = cam;
-            
-            // Convert extrinsics matrix from 4x4 to 3x4 matrix
-            const matrix = new THREE.Matrix4();
-            matrix.set(
-                extrinsics[0][0], extrinsics[0][1], extrinsics[0][2], extrinsics[0][3],
-                extrinsics[1][0], extrinsics[1][1], extrinsics[1][2], extrinsics[1][3],
-                extrinsics[2][0], extrinsics[2][1], extrinsics[2][2], extrinsics[2][3],
-                extrinsics[3][0], extrinsics[3][1], extrinsics[3][2], extrinsics[3][3]
-            );
-
-            // // Create a new Euler object
-            // const euler = new THREE.Euler();
-
-            // // The order parameter defines the order of rotations, e.g., 'XYZ', 'YXZ', etc.
-            // euler.setFromRotationMatrix(matrix, 'XYZ');
-
-            // // createCameraControlsUI(cam, euler);
-            // const extr_unit_scale = getUnitScale();
-
-            // const cam_center_local = new THREE.Vector4(0, 0, 0, 1.0);
-            // const cam_center = cam_center_local.applyMatrix4(matrix).multiplyScalar(extr_unit_scale);
-
-            // console.log(cam_center, extrinsics[0][3]*extr_unit_scale, extrinsics[1][3]*extr_unit_scale, extrinsics[2][3]*extr_unit_scale );
-
-            // let cameraModel = addCameraModel(
-            //     { x: cam_center.x, y: cam_center.y, z: cam_center.z}, 
-            //     { x: euler.x, y: euler.y, z: euler.z },  // only  for rotating the camera object (not it's axis)
-            //     color
-            // );
-
-            // console.log(cameraModel);
-
-            // // Add axes helper to visualize the local axes of the camera
-            // const axesHelper = new THREE.AxesHelper(0.5); // Size of the axes helper
-            // axesHelper.position.set(cam_center.x, cam_center.y, cam_center.z);
-            // // axesHelper.setRotationFromEuler(euler);
-            // axesHelper.rotation.set(euler.x, euler.y, euler.z);
-            // scene.add(axesHelper);
-
-            // const intr_unit_scale = 0.001;
-            // // Calculate focal length in the correct scale
-            // const focal_length = intrinsics[0] * intr_unit_scale;
-            // // Position the image plane directly in front of the camera
-            // const planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
-            // // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
-            // planePosition.applyEuler(euler).add(cam_center);
-
-            // // Add the image plane
-            // addImagePlan(
-            //     { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
-            //     { x: euler.x, y: euler.y, z: euler.z },
-            //     { w: image.width, h: image.height },
-            //     1000,
-            //     color
-            // );
-            
-            // if (cam_id === "0"){
-            //     addImageAsPlane(
-            //         "images/00001_"+cam_id+".jpg",
-            //         { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
-            //         { x: euler.x, y: euler.y, z: euler.z },
-            //         1000,
-            //         0.6
-            //     );
-            // }
-
-            // let points3d = points.map(point => {
-            //     const localPoint = new THREE.Vector3(point[0], point[1], point[2]).multiplyScalar(intr_unit_scale);
-            //     // Flip the y-axis
-            //     // localPoint.y *= -1;
-
-            //     return localPoint.applyEuler(euler).add(cam_center); // Transform to world coordinates
-            //     // return localPoint;  // Return camera coordinates
-            // });
-
-            // createJointsUI(points3d, cam_id);
-            
-            // points3d.forEach(point => {
-            //     addPoint(point.x, point.y, point.z, color, 0.005);
-            //     addLine(cam_center, point, color, 0.3);
-            // });
-
-            // // Project 3D points to 2D image coordinates
-            // let points2d = points3d.map(point => projectPoint(point, intrinsics, matrix));
-            
-            // // Visualize the edges between joints
-            // const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
-            // [0, 5], [5, 6], [6, 7], [7, 8],
-            // [0, 9], [9, 10], [10, 11], [11, 12],
-            // [0, 13], [13, 14], [14, 15], [15, 16],
-            // [0, 17], [17, 18], [18, 19], [19, 20]];
-
-            // HAND_EDGES.forEach(edge => {
-            //     const start = points3d[edge[0]];
-            //     const end = points3d[edge[1]];
-            //     // addLine(
-            //     //     { x: start.x, y: start.y, z: start.z },
-            //     //     { x: end.x, y: end.y, z: end.z },
-            //     //     color
-            //     // );
-            // });
-        });
-    })
-    .catch(error => console.error('Error loading JSON file:', error));
-
 document.getElementById(`x-axis`).addEventListener('click', (e) => {
-    camera.position.set(0, 0, 1.5);
+    camera.position.set(0, 0, 2.5);
 });
 document.getElementById(`y-axis`).addEventListener('click', (e) => {
-    camera.position.set(0, 1.5, 0);
+    camera.position.set(0, 2.5, 0);
 });
 document.getElementById(`z-axis`).addEventListener('click', (e) => {
-    camera.position.set(1.5, 0, 0);
+    camera.position.set(2.5, 0, 0);
 });
+
+document.getElementById('toggle-axes-helper').addEventListener('change', function(event) {
+    const isChecked = event.target.checked;
+    camera_devices.forEach(cam => {
+        // Toggle visibility
+        cam.axes_helper.visible = isChecked;
+    });
+});
+
+document.getElementById('toggle-proj-lines').addEventListener('change', function(event) {
+    const isChecked = event.target.checked;
+    camera_devices.forEach(cam => {
+        // Toggle visibility
+        cam.proj_lines_elem.forEach(line => {
+            line.visible = isChecked;
+        });
+    });
+});
+
+document.getElementById('toggle-img-planes').addEventListener('change', function(event) {
+    const isChecked = event.target.checked;
+    camera_devices.forEach(cam => {
+        // Toggle visibility
+        cam.image_plane.visible = isChecked;
+    });
+});
+
+document.getElementById('toggle-imgs').addEventListener('change', function(event) {
+    const isChecked = event.target.checked;
+    camera_devices.forEach(cam => {
+        // Toggle visibility
+        cam.image.visible = isChecked;
+    });
+});
+
 
 animate();
