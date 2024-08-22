@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
 
 
 const scene_window = document.getElementById('main');
@@ -249,13 +250,6 @@ function addCameraModel(cam_id, position = {x: 0, y: 0, z: 0}, rotation = {x: 0,
     });
 }
 
-// Animation loop
-function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-}
-
 function CameraDevice(
     intrinsics,
     extrinsics,  
@@ -465,16 +459,14 @@ function createCameraControlsUI(cam){
     // Create an accordion item for the camera
     const cameraItem = document.createElement('div');
     cameraItem.className = 'accordion-item';
-
-    // Accordion header
     cameraItem.innerHTML = `
         <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${cam.cam_id}" aria-expanded="false" aria-controls="collapse-${cam.cam_id}">
+            <button class="accordion-button ${cam.cam_id == 0 ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${cam.cam_id}" aria-expanded="${cam.cam_id == 0 ? 'true' : 'false'}" aria-controls="collapse-${cam.cam_id}">
                 Camera-${cam.cam_id}
                 <span style="margin-left: 10px; background-color: ${cam.color}; opacity:0.5; width: 40px; height: 20px;"></span>
             </button>
         </h2>
-        <div id="collapse-${cam.cam_id}" class="accordion-collapse collapse" data-bs-parent="#camera-controls">
+        <div id="collapse-${cam.cam_id}" class="accordion-collapse collapse ${cam.cam_id == 0 ? 'show' : ''}" data-bs-parent="#camera-controls">
             <div class="accordion-body">
                 <div class="input-group input-group-sm mb-3">
                     <span class="input-group-text" id="inputGroup-sizing-sm">PX</span>
@@ -516,6 +508,15 @@ window.addEventListener('resize', () => {
     renderer.setSize(ww, wh);
 });
 
+// Animation loop
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+    renderer.autoClear = false;
+    helper.render( renderer );
+}
+
 let scene = setupScene(); 
 let camera = setupCamera();
 let renderer = setupRenderer();
@@ -523,6 +524,9 @@ let controls = setupControls();
 let camera_devices = [];  // for storing camera informations
 addHelpers(scene);
 addLights(scene);
+
+const helper = new ViewHelper( camera, document.getElementById("gizmo") );
+helper.scale.set(-1, -1, 1);
 
 const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
     [0, 5], [5, 6], [6, 7], [7, 8],
@@ -534,7 +538,6 @@ const HAND_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4],
 scene_window.appendChild(renderer.domElement);
 
 const cameraControlsContainer = document.getElementById('camera-controls');
-const jointControlsContainer = document.getElementById('joint-controls');
 
 const FILE_PATH = "data.json";
 // const FILE_PATH = "shs.json";
@@ -576,13 +579,13 @@ loadDataFromJson(FILE_PATH)
     });
 
 document.getElementById(`x-axis`).addEventListener('click', (e) => {
-    camera.position.set(0, 0, 2.5);
+    camera.position.set(-2.5, 0, 0);
 });
 document.getElementById(`y-axis`).addEventListener('click', (e) => {
-    camera.position.set(0, 2.5, 0);
+    camera.position.set(0, -2.5, 0);
 });
 document.getElementById(`z-axis`).addEventListener('click', (e) => {
-    camera.position.set(2.5, 0, 0);
+    camera.position.set(0, 0, 2.5);
 });
 
 document.getElementById('toggle-axes-helper').addEventListener('change', function(event) {
