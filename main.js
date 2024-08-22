@@ -313,7 +313,6 @@ function CameraDevice(
     this.planePosition = new THREE.Vector3(0, 0, focal_length); // Place on the negative Z-axis (camera looks along -Z by default)
     // Rotate the plane position according to the camera's rotation and Translate the plane position to be in front of the camera
     this.planePosition.applyEuler(extrinsics.rot).add(extrinsics.trans);
-
     // Add the image plane
     this.image_plane = addPlane(
                         { x: this.planePosition.x, y: this.planePosition.y, z: this.planePosition.z }, 
@@ -323,18 +322,8 @@ function CameraDevice(
                         color,
                         0.2
                     );
-    
-    // // Add the image itself
-    // this.image = addImageAsPlane(
-    //                 "images/cam"+cam_id+".jpg",
-    //                 { x: planePosition.x, y: planePosition.y, z: planePosition.z }, 
-    //                 { x: extrinsics.rot.x, y: extrinsics.rot.y, z: extrinsics.rot.z },
-    //                 1000,
-    //                 0.6
-    //             );
 
     const image_dir = FILE_PATH.split('.')[0];
-    
     // Add the image itself
     addImageAsPlane(
         image_dir+"/cam"+cam_id+".png",
@@ -427,11 +416,11 @@ function updateCameraPosition(cam) {
         "z": parseFloat(document.getElementById(`pos-${cam.cam_id}-z`).value)
     };
 
-    cam.cam_params.extrinsics.rot = {
-        "x": THREE.MathUtils.degToRad(parseFloat(document.getElementById(`rot-${cam.cam_id}-x`).value)),
-        "y": THREE.MathUtils.degToRad(parseFloat(document.getElementById(`rot-${cam.cam_id}-y`).value)),
-        "z": THREE.MathUtils.degToRad(parseFloat(document.getElementById(`rot-${cam.cam_id}-z`).value))
-    }
+    cam.cam_params.extrinsics.rot = new THREE.Euler(
+        THREE.MathUtils.degToRad(parseFloat(document.getElementById(`rot-${cam.cam_id}-x`).value)),
+        THREE.MathUtils.degToRad(parseFloat(document.getElementById(`rot-${cam.cam_id}-y`).value)),
+        THREE.MathUtils.degToRad(parseFloat(document.getElementById(`rot-${cam.cam_id}-z`).value))
+    );
     
     if (cam) {
         let trans = cam.cam_params.extrinsics.trans;
@@ -454,8 +443,16 @@ function updateCameraPosition(cam) {
             line.geometry.attributes.position.needsUpdate = true;
         });
 
-        // cam.image_plane.position.set(trans.x, trans.y, trans.z + (cam.cam_params.intrinsics.fx * cam.scale.focal_scale));
-        // cam.image_plane.rotation.set(rot.x, rot.y, rot.z);
+        // Calculate focal length in the correct scale
+        let focal_length = cam.cam_params.intrinsics.fx * cam.scale.focal_scale;
+        // Position the image plane directly in front of the camera
+        const planePosition = new THREE.Vector3(0, 0, focal_length).applyEuler(rot).add(trans); 
+
+        cam.image_plane.position.set(planePosition.x, planePosition.y, planePosition.z);
+        cam.image_plane.rotation.set(rot.x, rot.y, rot.z);
+
+        cam.image.position.set(planePosition.x, planePosition.y, planePosition.z);
+        cam.image.rotation.set(rot.x, rot.y, rot.z);
 
     } else {
         console.error(`Camera not found.`);
@@ -539,9 +536,9 @@ scene_window.appendChild(renderer.domElement);
 const cameraControlsContainer = document.getElementById('camera-controls');
 const jointControlsContainer = document.getElementById('joint-controls');
 
-// const FILE_PATH = "data.json";
+const FILE_PATH = "data.json";
 // const FILE_PATH = "shs.json";
-const FILE_PATH = "dexycb.json";
+// const FILE_PATH = "dexycb.json";
 
 loadDataFromJson(FILE_PATH)
     .then(cameras => {
