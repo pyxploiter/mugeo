@@ -56,7 +56,15 @@ canvas { display: block; }
     width: 100vw;
     z-index: 0;
 }
-  
+
+/*--------------------------------------------------------------
+# Left Bar
+--------------------------------------------------------------*/
+
+.cam-checkboxes-div {
+    display: flex;
+    justify-content: space-around;
+}
   
 /*--------------------------------------------------------------
 # Axis direction buttons

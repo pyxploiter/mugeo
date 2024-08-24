@@ -3,7 +3,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
 
-
 const scene_window = document.getElementById('main');
 const ww = scene_window.clientWidth;
 const wh = scene_window.clientHeight;
@@ -39,10 +38,9 @@ function setupRenderer(){
 
 function setupCamera(){
     let camera = new THREE.PerspectiveCamera(75, ww/wh, 0.1, 1000);
-    // let camera = new THREE.OrthographicCamera( ww / - 2, ww / 2, wh / 2, wh / - 2, 1, 1000 );
     // Set camera position
-    camera.position.set(1, 1, 2);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0.4, 0.4, -0.7);
+    // camera.lookAt(0, 0, 0);
     return camera
 }
 
@@ -466,7 +464,7 @@ function createCameraControlsUI(cam){
                 <span style="margin-left: 10px; background-color: ${cam.color}; opacity:0.5; width: 40px; height: 20px;"></span>
             </button>
         </h2>
-        <div id="collapse-${cam.cam_id}" class="accordion-collapse collapse ${cam.cam_id == 0 ? 'show' : ''}" data-bs-parent="#camera-controls">
+        <div id="collapse-${cam.cam_id}" class="accordion-collapse collapse ${cam.cam_id == 0 ? 'show' : ''}">
             <div class="accordion-body">
                 <div class="input-group input-group-sm mb-3">
                     <span class="input-group-text" id="inputGroup-sizing-sm">PX</span>
@@ -484,6 +482,16 @@ function createCameraControlsUI(cam){
                     <span class="input-group-text" id="inputGroup-sizing-sm">RZ</span>
                     <input id="rot-${cam.cam_id}-z" type="number" class="form-control" value="${THREE.MathUtils.radToDeg(rot.z)}">
                 </div>
+                <div class="cam-checkboxes-div">
+                    <input type="checkbox" id="show-img-cb-${cam.cam_id}" class="cam-checkbox cam-checkbox-img">
+                    <label for="show-img-cb-${cam.cam_id}">Image</label>
+                    <input type="checkbox" id="show-plane-cb-${cam.cam_id}" class="cam-checkbox cam-checkbox-plane">
+                    <label for="show-plane-cb-${cam.cam_id}">Plane</label>
+                    <input type="checkbox" id="show-lines-cb-${cam.cam_id}" class="cam-checkbox cam-checkbox-lines">
+                    <label for="show-lines-cb-${cam.cam_id}">Projection</label>
+                    <input type="checkbox" id="show-axes-cb-${cam.cam_id}" class="cam-checkbox  cam-checkbox-axes">
+                    <label for="show-axes-cb-${cam.cam_id}">Axes</label>
+                </div>
             </div>
         </div>
     `;
@@ -500,6 +508,11 @@ function createCameraControlsUI(cam){
     document.getElementById(`rot-${cam.cam_id}-x`).addEventListener('input', (e) => updateCameraPosition(cam));
     document.getElementById(`rot-${cam.cam_id}-y`).addEventListener('input', (e) => updateCameraPosition(cam));
     document.getElementById(`rot-${cam.cam_id}-z`).addEventListener('input', (e) => updateCameraPosition(cam));
+
+    document.getElementById(`show-img-cb-${cam.cam_id}`).addEventListener('change', event => cam.image.visible = event.target.checked);
+    document.getElementById(`show-plane-cb-${cam.cam_id}`).addEventListener('change', event => cam.image_plane.visible = event.target.checked);
+    document.getElementById(`show-lines-cb-${cam.cam_id}`).addEventListener('change', event => cam.proj_lines_elem.forEach(line => line.visible = event.target.checked));
+    document.getElementById(`show-axes-cb-${cam.cam_id}`).addEventListener('change', event => cam.axes_helper.visible = event.target.checked);
 }
 
 window.addEventListener('resize', () => {
@@ -539,9 +552,10 @@ scene_window.appendChild(renderer.domElement);
 
 const cameraControlsContainer = document.getElementById('camera-controls');
 
-const FILE_PATH = "data.json";
+// const FILE_PATH = "data.json";
 // const FILE_PATH = "shs.json";
-// const FILE_PATH = "dexycb.json";
+const FILE_PATH = "dexycb.json";
+// const FILE_PATH = "dexycb_aug.json";
 
 loadDataFromJson(FILE_PATH)
     .then(cameras => {
@@ -578,6 +592,42 @@ loadDataFromJson(FILE_PATH)
         console.error('Error:', error);
     });
 
+
+// loadDataFromJson("dexycb.json")
+//     .then(cameras => {
+//         cameras.forEach(cam => {
+//             // camera model
+//             scene.add(cam.camera_model);
+//             // camera label
+//             scene.add(cam.camera_model_label);
+//             // cameras axes helper
+//             scene.add(cam.axes_helper);
+//             cam.axes_helper.visible = false; // invisible by default
+//             // hand points
+//             cam.points3d_world_elem.forEach(pt => {
+//                 scene.add(pt);
+//             });
+//             // hand edges
+//             cam.hand_edges_elem.forEach(edge => {
+//                 scene.add(edge);
+//             });
+//             // projection lines from points to camera
+//             cam.proj_lines_elem.forEach(proj_line => {
+//                 scene.add(proj_line);
+//                 proj_line.visible = false; // invisible by default
+//             });;
+//             // empty image plane
+//             scene.add(cam.image_plane);
+//             cam.image_plane.visible = false; // invisible by default
+
+//             createCameraControlsUI(cam);
+//         });
+        
+//     })
+//     .catch(error => {
+//         console.error('Error:', error);
+//     });
+
 document.getElementById(`x-axis`).addEventListener('click', (e) => {
     camera.position.set(-2.5, 0, 0);
 });
@@ -594,6 +644,9 @@ document.getElementById('toggle-axes-helper').addEventListener('change', functio
         // Toggle visibility
         cam.axes_helper.visible = isChecked;
     });
+    document.querySelectorAll('.cam-checkbox-axes').forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
 });
 
 document.getElementById('toggle-proj-lines').addEventListener('change', function(event) {
@@ -604,6 +657,9 @@ document.getElementById('toggle-proj-lines').addEventListener('change', function
             line.visible = isChecked;
         });
     });
+    document.querySelectorAll('.cam-checkbox-lines').forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
 });
 
 document.getElementById('toggle-img-planes').addEventListener('change', function(event) {
@@ -612,6 +668,9 @@ document.getElementById('toggle-img-planes').addEventListener('change', function
         // Toggle visibility
         cam.image_plane.visible = isChecked;
     });
+    document.querySelectorAll('.cam-checkbox-plane').forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
 });
 
 document.getElementById('toggle-imgs').addEventListener('change', function(event) {
@@ -619,6 +678,9 @@ document.getElementById('toggle-imgs').addEventListener('change', function(event
     camera_devices.forEach(cam => {
         // Toggle visibility
         cam.image.visible = isChecked;
+    });
+    document.querySelectorAll('.cam-checkbox-img').forEach(checkbox => {
+        checkbox.checked = isChecked;
     });
 });
 
