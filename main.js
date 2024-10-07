@@ -330,57 +330,61 @@ function CameraDevice(
     );
 }
 
-function loadDataFromJson(filepath) {
+function processEachCamera(cam){
+    const { cam_id, cam_label, intrinsics, extrinsics, color, image, points, trans_scale, points_scale } = cam;
+                    
+    // Convert extrinsics matrix from 4x4 to 3x4 matrix
+    const ext_matrix = new THREE.Matrix4();
+    ext_matrix.set(
+        extrinsics[0][0], extrinsics[0][1], extrinsics[0][2], extrinsics[0][3],
+        extrinsics[1][0], extrinsics[1][1], extrinsics[1][2], extrinsics[1][3],
+        extrinsics[2][0], extrinsics[2][1], extrinsics[2][2], extrinsics[2][3],
+        extrinsics[3][0], extrinsics[3][1], extrinsics[3][2], extrinsics[3][3]
+    );
+
+    // Create a new Euler object
+    const rotation = new THREE.Euler();
+    rotation.setFromRotationMatrix(ext_matrix, 'XYZ');
+
+    const translation = {
+        "x": extrinsics[0][3] * trans_scale,
+        "y": extrinsics[1][3] * trans_scale,
+        "z": extrinsics[2][3] * trans_scale
+    };
+    
+    const intr = {
+        "fx": intrinsics[0],
+        "fy": intrinsics[1],
+        "cx": intrinsics[2],
+        "cy": intrinsics[3]
+    }
+
+    const extr = {
+        "matrix": ext_matrix,
+        "rot": rotation,
+        "trans": translation
+    }
+
+    return addCameraModel(cam_id, translation, rotation, color).then(cameraModel => {
+        // Add axes helper to visualize the local axes of the camera
+        let axesHelper = new THREE.AxesHelper(1.0); // Size of the axes helper
+        axesHelper.position.set(translation.x, translation.y, translation.z);
+        axesHelper.rotation.set(rotation.x, rotation.y, rotation.z);
+
+        camera_devices.push(new CameraDevice(intr, extr, points, image, color, {trans_scale, points_scale}, cameraModel, axesHelper, cam_id, cam_label));
+    })
+    .catch(error => {
+        console.error("Failed to load the camera model:", error);
+    });
+}
+
+function loadDataFromJsonFile(filepath) {
     return new Promise((resolve, reject) => {
         fetch(filepath)
             .then(response => response.json())
             .then(data => {
                 const cameraPromises = data.cameras.map(cam => {
-                    const { cam_id, cam_label, intrinsics, extrinsics, color, image, points, trans_scale, points_scale } = cam;
-                    
-                    // Convert extrinsics matrix from 4x4 to 3x4 matrix
-                    const ext_matrix = new THREE.Matrix4();
-                    ext_matrix.set(
-                        extrinsics[0][0], extrinsics[0][1], extrinsics[0][2], extrinsics[0][3],
-                        extrinsics[1][0], extrinsics[1][1], extrinsics[1][2], extrinsics[1][3],
-                        extrinsics[2][0], extrinsics[2][1], extrinsics[2][2], extrinsics[2][3],
-                        extrinsics[3][0], extrinsics[3][1], extrinsics[3][2], extrinsics[3][3]
-                    );
-
-                    // Create a new Euler object
-                    const rotation = new THREE.Euler();
-                    rotation.setFromRotationMatrix(ext_matrix, 'XYZ');
-
-                    const translation = {
-                        "x": extrinsics[0][3] * trans_scale,
-                        "y": extrinsics[1][3] * trans_scale,
-                        "z": extrinsics[2][3] * trans_scale
-                    };
-                    
-                    const intr = {
-                        "fx": intrinsics[0],
-                        "fy": intrinsics[1],
-                        "cx": intrinsics[2],
-                        "cy": intrinsics[3]
-                    }
-
-                    const extr = {
-                        "matrix": ext_matrix,
-                        "rot": rotation,
-                        "trans": translation
-                    }
-
-                    return addCameraModel(cam_id, translation, rotation, color).then(cameraModel => {
-                        // Add axes helper to visualize the local axes of the camera
-                        let axesHelper = new THREE.AxesHelper(1.0); // Size of the axes helper
-                        axesHelper.position.set(translation.x, translation.y, translation.z);
-                        axesHelper.rotation.set(rotation.x, rotation.y, rotation.z);
-
-                        camera_devices.push(new CameraDevice(intr, extr, points, image, color, {trans_scale, points_scale}, cameraModel, axesHelper, cam_id, cam_label));
-                    })
-                    .catch(error => {
-                        console.error("Failed to load the camera model:", error);
-                    });
+                    return processEachCamera(cam);
                 });
 
                 // Wait for all promises to resolve
@@ -400,6 +404,31 @@ function loadDataFromJson(filepath) {
             });
     });
 }
+
+function loadDataFromJsonData(jsonData) {
+    return new Promise((resolve, reject) => {
+        try {
+            const cameraPromises = jsonData.cameras.map(cam => {
+                return processEachCamera(cam); // Assuming processEachCamera handles each camera
+            });
+
+            // Wait for all promises to resolve
+            Promise.all(cameraPromises)
+                .then(() => {
+                    // console.log(cameras);
+                    resolve(camera_devices); // Assuming camera_devices is defined globally or elsewhere
+                })
+                .catch(error => {
+                    console.error('Error resolving camera promises:', error);
+                    reject(error);
+                });
+        } catch (error) {
+            console.error('Error processing JSON data:', error);
+            reject(error);
+        }
+    });
+}
+
 
 function updateCameraPosition(cam) {
     cam.cam_params.extrinsics.trans = {
@@ -515,6 +544,26 @@ function createCameraControlsUI(cam){
     document.getElementById(`show-axes-cb-${cam.cam_id}`).addEventListener('change', event => cam.axes_helper.visible = event.target.checked);
 }
 
+function clearCameraControlsContainer() {
+    while (cameraControlsContainer.firstChild) {
+        cameraControlsContainer.removeChild(cameraControlsContainer.firstChild);
+    }
+}
+
+function clearSceneObjects() {
+    sceneObjects.forEach(obj => {
+        scene.remove(obj); // Remove object from the scene
+    });
+    sceneObjects.length = 0; // Clear the array
+}
+
+function resetCheckboxes() {
+    document.getElementById('toggle-axes-helper').checked = false;
+    document.getElementById('toggle-proj-lines').checked = false;
+    document.getElementById('toggle-img-planes').checked = false;
+    document.getElementById('toggle-imgs').checked = false;
+}
+
 window.addEventListener('resize', () => {
     camera.aspect = ww / wh;
     camera.updateProjectionMatrix();
@@ -535,6 +584,7 @@ let camera = setupCamera();
 let renderer = setupRenderer();
 let controls = setupControls();
 let camera_devices = [];  // for storing camera informations
+const sceneObjects = []; // Array to keep track of scene objects
 addHelpers(scene);
 addLights(scene);
 
@@ -552,37 +602,46 @@ scene_window.appendChild(renderer.domElement);
 
 const cameraControlsContainer = document.getElementById('camera-controls');
 
-// const FILE_PATH = "data.json";
-// const FILE_PATH = "shs.json";
-const FILE_PATH = "dexycb.json";
-// const FILE_PATH = "dexycb_aug.json";
+// const FILE_PATH = "mvhand.json";
+// const FILE_PATH = "dexycb.json";
+// const FILE_PATH = "ho3d.json";
+// Retrieve the file path from localStorage
+const FILE_PATH = localStorage.getItem('FILE_PATH') || 'mvhand.json';  // Default to "dexycb.json" if no input
 
-loadDataFromJson(FILE_PATH)
+loadDataFromJsonFile(FILE_PATH)
     .then(cameras => {
         cameras.forEach(cam => {
+            // console.log(cam)
             // camera model
             scene.add(cam.camera_model);
+            sceneObjects.push(cam.camera_model);
             // camera label
             scene.add(cam.camera_model_label);
+            sceneObjects.push(cam.camera_model_label);
             // cameras axes helper
-            scene.add(cam.axes_helper);
+            scene.add(cam.axes_helper);            
             cam.axes_helper.visible = false; // invisible by default
+            sceneObjects.push(cam.axes_helper);
             // hand points
             cam.points3d_world_elem.forEach(pt => {
                 scene.add(pt);
+                sceneObjects.push(pt); // Keep track of each point
             });
             // hand edges
             cam.hand_edges_elem.forEach(edge => {
                 scene.add(edge);
+                sceneObjects.push(edge); // Keep track of each edge
             });
             // projection lines from points to camera
             cam.proj_lines_elem.forEach(proj_line => {
                 scene.add(proj_line);
                 proj_line.visible = false; // invisible by default
+                sceneObjects.push(proj_line); // Keep track of each projection line
             });;
             // empty image plane
             scene.add(cam.image_plane);
             cam.image_plane.visible = false; // invisible by default
+            sceneObjects.push(cam.image_plane);
 
             createCameraControlsUI(cam);
         });
@@ -592,41 +651,6 @@ loadDataFromJson(FILE_PATH)
         console.error('Error:', error);
     });
 
-
-// loadDataFromJson("dexycb.json")
-//     .then(cameras => {
-//         cameras.forEach(cam => {
-//             // camera model
-//             scene.add(cam.camera_model);
-//             // camera label
-//             scene.add(cam.camera_model_label);
-//             // cameras axes helper
-//             scene.add(cam.axes_helper);
-//             cam.axes_helper.visible = false; // invisible by default
-//             // hand points
-//             cam.points3d_world_elem.forEach(pt => {
-//                 scene.add(pt);
-//             });
-//             // hand edges
-//             cam.hand_edges_elem.forEach(edge => {
-//                 scene.add(edge);
-//             });
-//             // projection lines from points to camera
-//             cam.proj_lines_elem.forEach(proj_line => {
-//                 scene.add(proj_line);
-//                 proj_line.visible = false; // invisible by default
-//             });;
-//             // empty image plane
-//             scene.add(cam.image_plane);
-//             cam.image_plane.visible = false; // invisible by default
-
-//             createCameraControlsUI(cam);
-//         });
-        
-//     })
-//     .catch(error => {
-//         console.error('Error:', error);
-//     });
 
 document.getElementById(`x-axis`).addEventListener('click', (e) => {
     camera.position.set(-2.5, 0, 0);
@@ -684,5 +708,23 @@ document.getElementById('toggle-imgs').addEventListener('change', function(event
     });
 });
 
+// Add event listener for the button click to load the JSON file
+document.getElementById('loadJsonButton').addEventListener('click', function() {
+    // Get the file name from the input field
+    const filePath = document.getElementById('jsonFileInput').value;
+
+    if (filePath) {
+        // Save the file path to local storage
+        localStorage.setItem('FILE_PATH', filePath);
+        // Clear the scene before loading new file content
+        clearSceneObjects();
+        clearCameraControlsContainer();
+        resetCheckboxes();
+        camera_devices = [];
+        location.reload();
+    } else {
+        alert('Please enter or select a valid file name!');
+    }
+});
 
 animate();

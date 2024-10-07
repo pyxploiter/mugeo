@@ -10,6 +10,15 @@
 <body>
     <div class="wrapper">
         <div class="leftbar">
+            <div class="input-group mb-3" id="json-file-wrapper">
+                <input list="fileOptions"  id="jsonFileInput" type="text" class="form-control" placeholder="JSON file name" aria-describedby="loadJsonButton">
+                <datalist id="fileOptions">
+                    <option value="ho3d.json">
+                    <option value="dexycb.json">
+                    <option value="mvhand.json">
+                </datalist>
+                <button class="btn btn-outline-secondary" type="button" id="loadJsonButton" >Button</button>
+            </div>
             <h5>Camera Controls</h5>
             <div class="accordion accordion-flush" id="camera-controls"></div>
         </div>
